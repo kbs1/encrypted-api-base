@@ -22,6 +22,12 @@ class Base
 
 	public function __construct($secret1, $secret2)
 	{
+		if (is_array($secret1))
+			$secret1 = $this->byteArrayToString($secret1);
+
+		if (is_array($secret2))
+			$secret1 = $this->byteArrayToString($secret2);
+
 		$this->ensureString($secret1);
 		$this->ensureString($secret2);
 
@@ -42,6 +48,19 @@ class Base
 		$this->checkSharedSecretFormat($this->secret2);
 		$this->checkSharedSecretsAreNotEqual();
 		return substr($this->secret1, $this->shared_secret_minimum_length) . $this->secret2;
+	}
+
+	protected function byteArrayToString(array $array)
+	{
+		$result = '';
+		foreach ($array as $element) {
+			if (!is_int($element) || $element < 0 || $element > 255)
+				throw new InvalidSharedSecretException();
+
+			$result .= chr($element);
+		}
+
+		return $result;
 	}
 
 	protected function ensureString($value)
