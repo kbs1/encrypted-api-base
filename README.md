@@ -10,7 +10,7 @@ sure no caller is able to read any service response or send any service request 
 
 HTTPS is not a requirement in this screnario, but is recommended.
 
-Client implementations ([PHP](https://github.com/kbs1/encrypted-api-client-php), [NodeJS](https://github.com/kbs1/encrypted-api-client-php)) provide
+Client implementations ([PHP](https://github.com/kbs1/encrypted-api-client-php), [NodeJS](https://github.com/kbs1/encrypted-api-client-nodejs)) provide
 a convenient way to call any Encrypted API service. Each client verifies the server response to make sure it is valid and not tampered with.
 
 The setup as a whole protects using MITM attacks, authenticates both the server and the caller, and offers protection against replay attacks, all over
