@@ -3,6 +3,7 @@
 namespace Kbs1\EncryptedApiBase\Cryptography;
 
 use Kbs1\EncryptedApiBase\Exceptions\Cryptography\InvalidSharedSecretException;
+use Kbs1\EncryptedApiBase\Exceptions\Cryptography\Generator\UnableToGenerateSharedSecretsException;
 
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\HandlesSharedSecrets;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\GeneratesRandomBytes;
@@ -11,7 +12,7 @@ class SharedSecretsGenerator
 {
 	use HandlesSharedSecrets, GeneratesRandomBytes;
 
-	public function generate()
+	public function generateSharedSecrets()
 	{
 		$generated = false;
 		$tries = 0;
@@ -32,7 +33,7 @@ class SharedSecretsGenerator
 		} while (!$generated && $tries < 5000);
 
 		if (!$generated)
-			throw new UnableToGenerateSuitableSharedSecretsException();
+			throw new UnableToGenerateSharedSecretsException();
 
 		return ['secret1' => $this->stringToByteArray($secret1), 'secret2' => $this->stringToByteArray($secret2)];
 	}
