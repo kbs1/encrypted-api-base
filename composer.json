@@ -1,6 +1,6 @@
 {
 	"name": "kbs1/encrypted-api-base",
-	"description": "Encrypted API - base encryptor and decryptor implementation.",
+	"description": "Encrypted API - base encryptor, decryptor and shared secretes generator implementation.",
 	"type": "library",
 	"license": "MIT",
 	"authors": [
@@ -14,7 +14,7 @@
 	},
 	"autoload": {
 		"psr-4": {
-			"Kbs1\\EncryptedApi\\": "src/"
+			"Kbs1\\EncryptedApiBase\\": "src/"
 		}
 	}
 }

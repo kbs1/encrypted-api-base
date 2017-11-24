@@ -1,12 +1,12 @@
 # Encrypted API
 Encrypted API packages provide secure and authenticated communication between two applications over the internet. Two shared secrets are used,
 one for encryption and decryption using `aes-256-ctr`, other for checksumming the data using `sha512-hmac`. All request and response data
-between applications are transmitted securely (encrypted). Each request and response is valid for maximally 10 seconds. HTTPS is not a
-requirement in this screnario, but is recommended.
+between applications are transmitted encrypted. Each request and response is valid for maximally 10 seconds. HTTPS endpoints are not a
+requirement, but are recommended.
 
 # Server implementations
 Server implementations ([Laravel](https://github.com/kbs1/encrypted-api-server-laravel), [PHP](https://github.com/kbs1/encrypted-api-server-php))
-support replay attacks protection and IPv4 whitelisting. Request URL, query string and HTTP method verb are checked after decryption, so that the request
+implement replay attacks protection and IPv4 whitelisting. Request URL, query string and HTTP method verb are checked after decryption, so that the request
 can not be stolen and sent to a different service endpoint.
 
 Multiple calling applications are supported.
@@ -21,4 +21,4 @@ a convenient way to call any Encrypted API service. Each client verifies the ser
 The setup as a whole protects using MITM attacks, authenticates both the server and the caller, and offers protection against replay attacks, over
 plain HTTP, or HTTPS.
 
-This repository contains base (shared) implementations of encryptor and decryptor and is not meant to be used separately.
+This repository contains implementations of encryptor, decryptor and shared secrets generator.

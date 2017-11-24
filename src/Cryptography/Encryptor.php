@@ -1,18 +1,23 @@
 <?php
 
-namespace Kbs1\EncryptedApi\Cryptography;
+namespace Kbs1\EncryptedApiBase\Cryptography;
 
-use Kbs1\EncryptedApi\Exceptions\Decryption\WeakRandomBytesException;
-use Kbs1\EncryptedApi\Exceptions\Decryption\CircularReferencesException;
-use Kbs1\EncryptedApi\Exceptions\Decryption\InvalidArrayFormatException;
-use Kbs1\EncryptedApi\Exceptions\Decryption\UnableToEncodeAsBase64Exception;
-use Kbs1\EncryptedApi\Exceptions\Decryption\UnableToEncodeAsJsonException;
-use Kbs1\EncryptedApi\Exceptions\Decryption\UnsupportedVariableTypeException;
+use Kbs1\EncryptedApiBase\Exceptions\Encryption\UnableToEncodeAsBase64Exception;
+use Kbs1\EncryptedApiBase\Exceptions\Encryption\UnableToEncodeAsJsonException;
 
-class Encryptor extends Base
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\EnsuresDataTypes;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\HandlesSharedSecrets;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithCipher;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\GeneratesRandomBytes;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithRequestId;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\ComputesSignature;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\ChecksBinHexFormat;
+
+class Encryptor
 {
+	use EnsuresDataTypes, HandlesSharedSecrets, WorksWithCipher, GeneratesRandomBytes, WorksWithRequestId, ComputesSignature, ChecksBinHexFormat;
+
 	protected $headers, $data, $force_id, $used_id, $url, $method;
-	protected $recursionCheckObject;
 
 	public function __construct(array $headers, $data, $secret1, $secret2, $force_id = null, $url = null, $method = null)
 	{
@@ -34,22 +39,21 @@ class Encryptor extends Base
 		$this->headers = $headers;
 		$this->data = $data;
 
+		if ($force_id)
+			$this->checkBinHexFormat($force_id, $ths->getIdLength() * 2);
+
 		$this->force_id = $force_id;
 
 		$this->url = $url;
 		$this->method = $method;
 
-		$this->recursionCheckObject = new \stdClass();
-
-		parent::__construct($secret1, $secret2);
+		$this->setSharedSecrets($secret1, $secret2);
 	}
 
 	public function encrypt()
 	{
-		$iv = $this->getRandomBytes($this->iv_length);
-
 		$data = [
-			'id' => $this->used_id = $this->force_id ?? $this->getRandomBytes($this->id_length),
+			'id' => $this->used_id = $this->force_id ?? bin2hex($this->generateRandomBytes($this->getIdLength())),
 			'timestamp' => time(),
 			'headers' => $this->encodeBase64Array($this->headers),
 			'data' => $this->data === null ? null : (is_string($this->data) ? $this->encodeBase64($this->data) : $this->encodeBase64Array($this->data)),
@@ -57,29 +61,16 @@ class Encryptor extends Base
 			'method' => $this->encodeBase64(strtolower($this->method)),
 		];
 
-		$encrypted = bin2hex(openssl_encrypt($this->encodeJson($data), $this->data_algorithm, $this->getSecret1(), OPENSSL_RAW_DATA, hex2bin($iv)));
-		$signature = hash_hmac($this->signature_algorithm, $encrypted . $iv, $this->getSecret2());
+		$iv = $this->generateRandomBytes($this->getIvLength());
+		$encrypted = $this->encryptString($this->encodeJson($data), $iv, $this->secret1);
+		$signature = $this->computeSignature(bin2hex($encrypted) . bin2hex($iv), $this->secret2);
 
-		$this->checkDataFormat($encrypted);
-		$this->checkIvFormat($iv);
-		$this->checkSignatureFormat($signature);
-		$this->checkIdFormat($this->getId());
-
-		return $this->encodeJson(['data' => $encrypted, 'iv' => $iv, 'signature' => $signature]);
+		return $this->encodeJson(['data' => bin2hex($encrypted), 'iv' => bin2hex($iv), 'signature' => bin2hex($signature)]);
 	}
 
 	public function getId()
 	{
 		return $this->used_id;
-	}
-
-	protected function getRandomBytes($length)
-	{
-		$bytes = openssl_random_pseudo_bytes($length, $is_strong);
-		if (!$is_strong)
-			throw new WeakRandomBytesException();
-
-		return bin2hex($bytes);
 	}
 
 	protected function encodeBase64($value)
@@ -111,59 +102,5 @@ class Encryptor extends Base
 			throw new UnableToEncodeAsJsonException(json_last_error_msg());
 
 		return $result;
-	}
-
-	protected function ensureStringOrNull($value)
-	{
-		if (!is_string($value) && $value !== null)
-			throw new UnsupportedVariableTypeException();
-	}
-
-	protected function ensureStringOrArrayOrNull($value)
-	{
-		if (!is_string($value) && !is_array($value) && $value !== null)
-			throw new UnsupportedVariableTypeException();
-	}
-
-	protected function ensureFlatArray(array &$array)
-	{
-		if (count($array) !== count($array, COUNT_RECURSIVE))
-			throw new InvalidArrayFormatException();
-	}
-
-	protected function ensureNoCircularReferences(array &$array, array &$alreadySeen = [])
-	{
-		$alreadySeen[] = &$array;
-
-		foreach ($array as &$item) {
-			if (!is_array($item))
-				continue;
-
-			$item[] = $this->recursionCheckObject;
-			$recursionDetected = false;
-
-			foreach ($alreadySeen as $candidate) {
-				if (end($candidate) === $this->recursionCheckObject) {
-					$recursionDetected = true;
-					break;
-				}
-			}
-
-			array_pop($item);
-
-			if ($recursionDetected || $this->ensureNoCircularReferences($item, $alreadySeen))
-				throw new CircularReferencesException();
-		}
-	}
-
-	protected function ensureSupportedVariableTypes(array $array)
-	{
-		foreach ($array as $item) {
-			if (is_array($item))
-				$this->ensureSupportedVariableTypes($item);
-
-			if (!in_array(gettype($item), ['boolean', 'integer', 'double', 'string', 'NULL']))
-				throw new UnsupportedVariableTypeException();
-		}
 	}
 }

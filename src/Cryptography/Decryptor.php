@@ -1,14 +1,23 @@
 <?php
 
-namespace Kbs1\EncryptedApi\Cryptography;
+namespace Kbs1\EncryptedApiBase\Cryptography;
 
-use Kbs1\EncryptedApi\Exceptions\Decryption\InvalidDataException;
-use Kbs1\EncryptedApi\Exceptions\Decryption\InvalidSignatureException;
-use Kbs1\EncryptedApi\Exceptions\Decryption\InvalidTimestampException;
-use Kbs1\EncryptedApi\Exceptions\Decryption\UnableToDecodeBase64Exception;
+use Kbs1\EncryptedApiBase\Exceptions\Cryptography\InvalidDataException;
 
-class Decryptor extends Base
+use Kbs1\EncryptedApiBase\Exceptions\Cryptography\Decryption\InvalidTimestampException;
+use Kbs1\EncryptedApiBase\Exceptions\Cryptography\Decryption\UnableToDecodeBase64Exception;
+
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\EnsuresDataTypes;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\HandlesSharedSecrets;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithCipher;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithRequestId;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\VerifiesSignature;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\ChecksBinHexFormat;
+
+class Decryptor
 {
+	use EnsuresDataTypes, HandlesSharedSecrets, WorksWithCipher, WorksWithRequestId, VerifiesSignature, ChecksBinHexFormat;
+
 	protected $data;
 
 	public function __construct($data, $secret1, $secret2)
@@ -16,16 +25,19 @@ class Decryptor extends Base
 		$this->ensureString($data);
 		$this->data = $data;
 
-		parent::__construct($secret1, $secret2);
+		$this->setSharedSecrets($secret1, $secret2);
 	}
 
 	public function decrypt()
 	{
 		$input = $this->parse();
-		$this->verifySignature($input);
+		$this->verifySignature($input['data'] . $input['iv'], hex2bin($input['signature']), $this->secret2);
+
 		$decrypted = $this->decryptData($input);
-		$this->checkIdFormat($decrypted['id']);
-		$this->verifyTimestamp($decrypted);
+
+		$this->checkBinHexFormat($decrypted['id'], $this->getIdLength() * 2);
+		$this->verifyTimestamp($decrypted['timestamp']);
+
 		$original = $this->decode($decrypted);
 
 		return $original;
@@ -35,34 +47,23 @@ class Decryptor extends Base
 	{
 		$input = $this->decodeAndCheckJson($this->data, ['signature', 'iv', 'data']);
 
-		$this->checkSignatureFormat($input['signature']);
-		$this->checkIvFormat($input['iv']);
-		$this->checkDataFormat($input['data']);
+		$this->checkBinHexFormat($input['signature'], $this->getSignatureLength() * 2);
+		$this->checkBinHexFormat($input['iv'], $this->getIvLength() * 2);
+		$this->checkBinHexFormat($input['data']);
 
 		return $input;
 	}
 
-	protected function verifySignature($input)
-	{
-		$expected = hash_hmac($this->signature_algorithm, $input['data'] . $input['iv'], $this->getSecret2());
-
-		if (!hash_equals($expected, $input->signature))
-			throw new InvalidSignatureException();
-	}
-
 	protected function decryptData($input)
 	{
-		$decrypted = @openssl_decrypt(hex2bin($input['data']), $this->data_algorithm, $this->getSecret1(), OPENSSL_RAW_DATA, hex2bin($input['iv']));
-
-		if ($decrypted === false)
-			throw new InvalidDataException();
+		$decrypted = $this->decryptString(hex2bin($input['data']), hex2bin($input['iv']), $this->secret1);
 
 		return $this->decodeAndCheckJson($decrypted, ['id', 'timestamp', 'headers', 'data', 'url', 'method']);
 	}
 
-	protected function verifyTimestamp($data)
+	protected function verifyTimestamp($input)
 	{
-		if (!is_numeric($data['timestamp']) || $data['timestamp'] < time() - 10)
+		if (!is_numeric($input) || $input < time() - 10)
 			throw new InvalidTimestampException();
 	}
 
