@@ -22,14 +22,28 @@ trait EnsuresDataTypes
 			throw new UnsupportedVariableTypeException();
 	}
 
+	protected function ensureStringOrArray($value)
+	{
+		if (!is_string($value) && !is_array($value))
+			throw new UnsupportedVariableTypeException();
+	}
+
 	protected function ensureStringOrArrayOrNull($value)
 	{
 		if (!is_string($value) && !is_array($value) && $value !== null)
 			throw new UnsupportedVariableTypeException();
 	}
 
-	protected function ensureFlatArray(array &$array)
+	protected function ensureArray(array $array)
 	{
+		if (!is_array($array))
+			throw new UnsupportedVariableTypeException();
+	}
+
+	protected function ensureFlatArray(array $array)
+	{
+		$this->ensureArray($array);
+
 		if (count($array) !== count($array, COUNT_RECURSIVE))
 			throw new InvalidArrayFormatException();
 	}
@@ -71,5 +85,11 @@ trait EnsuresDataTypes
 			if (!in_array(gettype($item), ['boolean', 'integer', 'double', 'string', 'NULL']))
 				throw new UnsupportedVariableTypeException();
 		}
+	}
+
+	protected function ensureValidUtf8($value)
+	{
+		if (!mb_check_encoding($value, 'UTF-8'))
+			throw new UnsupportedVariableTypeException();
 	}
 }

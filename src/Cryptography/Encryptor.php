@@ -4,6 +4,7 @@ namespace Kbs1\EncryptedApiBase\Cryptography;
 
 use Kbs1\EncryptedApiBase\Exceptions\Encryption\UnableToEncodeAsBase64Exception;
 use Kbs1\EncryptedApiBase\Exceptions\Encryption\UnableToEncodeAsJsonException;
+use Kbs1\EncryptedApiBase\Exceptions\Cryptography\UnsupportedVariableTypeException;
 
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\EnsuresDataTypes;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\HandlesSharedSecrets;
@@ -55,10 +56,10 @@ class Encryptor
 		$data = [
 			'id' => $this->used_id = $this->force_id ?? bin2hex($this->generateRandomBytes($this->getIdLength())),
 			'timestamp' => time(),
-			'headers' => $this->encodeBase64Array($this->headers),
-			'data' => $this->data === null ? null : (is_string($this->data) ? $this->encodeBase64($this->data) : $this->encodeBase64Array($this->data)),
-			'url' => $this->encodeBase64($this->url),
-			'method' => $this->encodeBase64(strtolower($this->method)),
+			'headers' => $this->jsonTransmittableArray($this->headers),
+			'data' => $this->data === null ? null : (is_string($this->data) ? $this->jsonTransmittableString($this->data) : $this->jsonTransmittableArray($this->data)),
+			'url' => $this->jsonTransmittableString($this->url),
+			'method' => $this->jsonTransmittableString(strtolower($this->method)),
 		];
 
 		$iv = $this->generateRandomBytes($this->getIvLength());
@@ -82,15 +83,26 @@ class Encryptor
 		return $value;
 	}
 
-	protected function encodeBase64Array(array $array)
+	protected function jsonTransmittableString($value)
+	{
+		try {
+			$this->ensureValidUtf8($value);
+		} catch (UnsupportedVariableTypeException $ex) {
+			return 'b' . $this->encodeBase64($value);
+		}
+
+		return 'u' . $value;
+	}
+
+	protected function jsonTransmittableArray(array $array)
 	{
 		$result = [];
 
 		foreach ($array as $key => $value)
 			if (is_array($value))
-				$result[$this->encodeBase64($key)] = $this->encodeBase64Array($value);
+				$result[$this->jsonTransmittableString($key)] = $this->jsonTransmittableArray($value);
 			else
-				$result[$this->encodeBase64($key)] = $this->encodeBase64($value);
+				$result[$this->jsonTransmittableString($key)] = $this->jsonTransmittableString($value);
 
 		return $result;
 	}

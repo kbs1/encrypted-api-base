@@ -69,15 +69,20 @@ class Decryptor
 
 	protected function decode(array $input)
 	{
-		$input['headers'] = $this->decodeBase64Array($input['headers']);
+		$this->ensureFlatArray($input['headers']);
+		$this->ensureStringOrArray($input['data']);
+		$this->ensureString($input['url']);
+		$this->ensureString($input['method']);
+
+		$input['headers'] = $this->decodeJsonTransmittableArray($input['headers']);
 
 		if (is_array($input['data']))
-			$input['data'] = $this->decodeBase64Array($input['data']);
+			$input['data'] = $this->decodeJsonTransmittableArray($input['data']);
 		if (is_string($input['data']))
-			$input['data'] = $this->decodeBase64($input['data']);
+			$input['data'] = $this->decodeJsonTransmittableString($input['data']);
 
-		$input['url'] = $this->decodeBase64($input['url']);
-		$input['method'] = $this->decodeBase64($input['method']);
+		$input['url'] = $this->decodeJsonTransmittableString($input['url']);
+		$input['method'] = $this->decodeJsonTransmittableString($input['method']);
 
 		return $input;
 	}
@@ -91,15 +96,31 @@ class Decryptor
 		return $value;
 	}
 
-	protected function decodeBase64Array(array $array)
+	protected function decodeJsonTransmittableString($value)
+	{
+		$this->ensureString($value);
+
+		if (strlen($value) < 1)
+			throw new InvalidDataException();
+
+		if ($value[0] === 'u')
+			return substr($value, 1);
+
+		if ($value[0] === 'b')
+			return $this->decodeBase64(substr($value, 1));
+
+		throw new InvalidDataException();
+	}
+
+	protected function decodeJsonTransmittableArray(array $array)
 	{
 		$result = [];
 
 		foreach ($array as $key => $value)
 			if (is_array($value))
-				$result[$this->decodeBase64($key)] = $this->decodeBase64Array($value);
+				$result[$this->decodeJsonTransmittableString($key)] = $this->decodeJsonTransmittableArray($value);
 			else
-				$result[$this->decodeBase64($key)] = $this->decodeBase64($value);
+				$result[$this->decodeJsonTransmittableString($key)] = $this->decodeJsonTransmittableString($value);
 
 		return $result;
 	}
