@@ -1,6 +1,7 @@
 {
 	"name": "kbs1/encrypted-api-base",
 	"description": "Encrypted API - base encryptor, decryptor and shared secretes generator implementation.",
+	"keywords": ["encrypted", "api"],
 	"type": "library",
 	"license": "MIT",
 	"authors": [

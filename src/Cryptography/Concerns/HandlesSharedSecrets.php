@@ -15,7 +15,7 @@ trait HandlesSharedSecrets
 			$secret1 = $this->byteArrayToString($secret1);
 
 		if (is_array($secret2))
-			$secret1 = $this->byteArrayToString($secret2);
+			$secret2 = $this->byteArrayToString($secret2);
 
 		$this->ensureSharedSecretsValidity($secret1, $secret2);
 
