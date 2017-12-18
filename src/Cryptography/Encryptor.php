@@ -22,9 +22,7 @@ class Encryptor
 
 	public function __construct(array $headers, $data, $secret1, $secret2, $force_id = null, $url = null, $method = null)
 	{
-		$this->ensureNoCircularReferences($headers);
-		$this->ensureSupportedVariableTypes($headers);
-		$this->ensureFlatArray($headers);
+		$this->ensureHeadersArray($headers);
 
 		$this->ensureStringOrArrayOrNull($data);
 

@@ -11,7 +11,7 @@ trait WorksWithCipher
 
 	public function getIvLength()
 	{
-		return openssl_cipher_iv_length($this->cipher);
+		return openssl_cipher_iv_length($this->cipher_algorithm);
 	}
 
 	public function encryptString($input, $iv, $secret)

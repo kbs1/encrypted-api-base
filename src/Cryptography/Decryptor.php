@@ -69,7 +69,7 @@ class Decryptor
 
 	protected function decode(array $input)
 	{
-		$this->ensureFlatArray($input['headers']);
+		$this->ensureHeadersArray($input['headers']);
 		$this->ensureStringOrArray($input['data']);
 		$this->ensureString($input['url']);
 		$this->ensureString($input['method']);

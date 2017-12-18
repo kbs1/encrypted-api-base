@@ -34,18 +34,16 @@ trait EnsuresDataTypes
 			throw new UnsupportedVariableTypeException();
 	}
 
-	protected function ensureArray(array $array)
+	protected function ensureHeadersArray(array $headers)
 	{
-		if (!is_array($array))
-			throw new UnsupportedVariableTypeException();
-	}
+		$this->ensureNoCircularReferences($headers);
+		$this->ensureSupportedVariableTypes($headers);
 
-	protected function ensureFlatArray(array $array)
-	{
-		$this->ensureArray($array);
-
-		if (count($array) !== count($array, COUNT_RECURSIVE))
-			throw new InvalidArrayFormatException();
+		foreach ($headers as $header => $values) {
+			if (count($values) !== count($values, COUNT_RECURSIVE)) {
+				throw new InvalidArrayFormatException();
+			}
+		}
 	}
 
 	protected function ensureNoCircularReferences(array &$array, array &$alreadySeen = [])
@@ -79,8 +77,10 @@ trait EnsuresDataTypes
 	protected function ensureSupportedVariableTypes(array $array)
 	{
 		foreach ($array as $item) {
-			if (is_array($item))
+			if (is_array($item)) {
 				$this->ensureSupportedVariableTypes($item);
+				continue;
+			}
 
 			if (!in_array(gettype($item), ['boolean', 'integer', 'double', 'string', 'NULL']))
 				throw new UnsupportedVariableTypeException();
