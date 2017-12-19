@@ -12,16 +12,17 @@ use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithCipher;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\GeneratesRandomBytes;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithRequestId;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithTimestamp;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithUploadHashes;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\ComputesSignature;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\ChecksBinHexFormat;
 
 class Encryptor
 {
-	use EnsuresDataTypes, HandlesSharedSecrets, WorksWithCipher, GeneratesRandomBytes, WorksWithRequestId, WorksWithTimestamp, ComputesSignature, ChecksBinHexFormat;
+	use EnsuresDataTypes, HandlesSharedSecrets, WorksWithCipher, GeneratesRandomBytes, WorksWithRequestId, WorksWithTimestamp, WorksWithUploadHashes, ComputesSignature, ChecksBinHexFormat;
 
-	protected $headers, $data, $force_id, $used_id, $url, $method;
+	protected $headers, $data, $force_id, $used_id, $url, $method, $uploads;
 
-	public function __construct(array $headers, $data, $secret1, $secret2, $force_id = null, $url = null, $method = null)
+	public function __construct(array $headers, $data, $secret1, $secret2, $force_id = null, $url = null, $method = null, $uploads = null)
 	{
 		$this->ensureHeadersArray($headers);
 
@@ -35,6 +36,12 @@ class Encryptor
 		$this->ensureStringOrNull($force_id);
 		$this->ensureStringOrNull($url);
 		$this->ensureStringOrNull($method);
+		$this->ensureArrayOrNull($uploads);
+
+		if ($uploads) {
+			$this->ensureUploadsArray($uploads);
+			$this->checkArrayBinHexFormat($uploads, $this->getUploadHashLength());
+		}
 
 		$this->headers = $headers;
 		$this->data = $data;
@@ -46,6 +53,7 @@ class Encryptor
 
 		$this->url = $url;
 		$this->method = $method;
+		$this->uploads = $uploads;
 
 		$this->setSharedSecrets($secret1, $secret2);
 	}
@@ -73,6 +81,7 @@ class Encryptor
 			'timestamp' => $this->getCurrentTimestamp(),
 			'headers' => $this->jsonTransmittableArray($this->headers),
 			'data' => $this->data === null ? null : (is_string($this->data) ? $this->jsonTransmittableValue($this->data) : $this->jsonTransmittableArray($this->data)),
+			'uploads' => $this->uploads,
 			'url' => $this->jsonTransmittableValue($this->url),
 			'method' => $this->jsonTransmittableValue($this->method === null ? null : strtolower($this->method)),
 		];

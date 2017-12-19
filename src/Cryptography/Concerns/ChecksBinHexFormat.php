@@ -18,4 +18,14 @@ trait ChecksBinHexFormat
 
 		return $result;
 	}
+
+	protected function checkArrayBinHexFormat(array $array, $length_in_bytes = null)
+	{
+		foreach ($array as $value) {
+			if (is_array($value))
+				$this->checkArrayBinHexFormat($value, $length_in_bytes);
+			else
+				$this->checkBinHexFormat($value, $length_in_bytes);
+		}
+	}
 }

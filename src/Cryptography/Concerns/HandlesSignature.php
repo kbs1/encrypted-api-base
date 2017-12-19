@@ -5,7 +5,7 @@ namespace Kbs1\EncryptedApiBase\Cryptography\Concerns;
 trait HandlesSignature
 {
 	protected $signature_algorithm = 'sha512';
-	protected $signature_length = 32;
+	protected $signature_length = 64;
 
 	protected function getSignatureLength()
 	{

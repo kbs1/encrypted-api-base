@@ -34,6 +34,22 @@ trait EnsuresDataTypes
 			throw new UnsupportedVariableTypeException();
 	}
 
+	protected function ensureArrayOrNull($value)
+	{
+		if (!is_array($value) && $value !== null)
+			throw new UnsupportedVariableTypeException();
+	}
+
+	protected function ensureFlatArray(array $array)
+	{
+		if (count($array) !== count($array, COUNT_RECURSIVE))
+			throw new InvalidArrayFormatException();
+
+		foreach ($array as $element)
+			if (is_array($element))
+				throw new InvalidArrayFormatException();
+	}
+
 	protected function ensureHeadersArray(array $headers)
 	{
 		$this->ensureNoCircularReferences($headers);
@@ -58,6 +74,13 @@ trait EnsuresDataTypes
 				}
 			}
 		}
+	}
+
+	protected function ensureUploadsArray(array $uploads)
+	{
+		$this->ensureNoCircularReferences($uploads);
+		$this->ensureSupportedVariableTypes($uploads);
+		$this->ensureFlatArray($uploads);
 	}
 
 	protected function ensureNoCircularReferences(array &$array, array &$alreadySeen = [])

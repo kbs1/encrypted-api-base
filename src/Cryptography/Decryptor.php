@@ -12,12 +12,13 @@ use Kbs1\EncryptedApiBase\Cryptography\Concerns\HandlesSharedSecrets;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithCipher;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithRequestId;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithTimestamp;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithUploadHashes;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\VerifiesSignature;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\ChecksBinHexFormat;
 
 class Decryptor
 {
-	use EnsuresDataTypes, HandlesSharedSecrets, WorksWithCipher, WorksWithRequestId, WorksWithTimestamp, VerifiesSignature, ChecksBinHexFormat;
+	use EnsuresDataTypes, HandlesSharedSecrets, WorksWithCipher, WorksWithRequestId, WorksWithTimestamp, WorksWithUploadHashes, VerifiesSignature, ChecksBinHexFormat;
 
 	protected $data;
 
@@ -59,7 +60,7 @@ class Decryptor
 	{
 		$decrypted = $this->decryptString(hex2bin($input['data']), hex2bin($input['iv']), $this->secret1);
 
-		return $this->decodeAndCheckJson($decrypted, ['id', 'timestamp', 'headers', 'data', 'url', 'method']);
+		return $this->decodeAndCheckJson($decrypted, ['id', 'timestamp', 'headers', 'data', 'uploads', 'url', 'method']);
 	}
 
 	protected function verifyTimestamp($input)
@@ -72,8 +73,14 @@ class Decryptor
 	{
 		$this->ensureHeadersArray($input['headers']);
 		$this->ensureStringOrArray($input['data']);
-		$this->ensureString($input['url']);
-		$this->ensureString($input['method']);
+		$this->ensureArrayOrNull($input['uploads']);
+		$this->ensureStringOrNull($input['url']);
+		$this->ensureStringOrNull($input['method']);
+
+		if ($input['uploads']) {
+			$this->ensureUploadsArray($input['uploads']);
+			$this->checkArrayBinHexFormat($input['uploads'], $this->getUploadHashLength());
+		}
 
 		$input['headers'] = $this->decodeJsonTransmittableArray($input['headers']);
 

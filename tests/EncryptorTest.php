@@ -26,7 +26,7 @@ class EncryptorTest extends TestCase
 	public function testEncryption1()
 	{
 		$instance = $this->expectsMockInstance();
-		$this->assertEquals('{"data":"9c71adef9c981616931d2f5711f0789e8294b5a08a186915fd5d157b53456738f7dc6f68a5ff3486edec37b8f6499a0d0851f3c332f768f3761598a648c32891324da17557ceee44fe1805b3717a806bea477920f31b2ae5df3ccff4e60ef72e3196a48eaca97003482a60ffbc290d405e229007ce27a4e23b4c609a9313267ccc0ab1b8714d057905384d5108ebce4a5cba829f40ec475c9bd292106ad43f8faae93433c96fe1d3e4c03038c38c52ad676b52a9cae40ee4c0b87032c19d0e27cf","iv":"61616161616161616161616161616161","signature":"624452a35acdb09ca3342bd18d1774dbc7b44b80d23928985c7f9d3ca07f7dd5b70c31bf0f3ce7ad3a102d95cb9223b983cc0f16706c831c24ce1d5f37b2c1dc"}', $instance->encrypt());
+		$this->assertEquals('{"data":"9c71adef9c981616931d2f5711f0789e8294b5a08a186915fd5d157b53456738f7dc6f68a5ff3486edec37b8f6499a0d0851f3c332f768f3761598a648c32891324da17557ceee44fe1805b3717a806bea477920f31b2ae5df3ccff4e60ef72e3196a48eaca97003482a60ffbc290d405e229007ce27a4e23b4c609a9313267ccc0ab1b8714d057905384d5108ebce4a5cba829f40ec475c9bd292106ad43f8faae93433c96fe1d3e4c032388ed758ab293d10fecbed56aedaae3e2a95861727de4cd85df4601f5f949c3d89f6fc51f1","iv":"61616161616161616161616161616161","signature":"9841f3ac1e1299b72b5322f44b2c2a30d9d0ea8ab4459e93591248c3a1c2eac98fa2bfdbb7497a4d4862c64daa5d24b20e0e9afb60e27038f980dcf051b55992"}', $instance->encrypt());
 		$this->assertEquals('6161616161616161616161616161616161616161616161616161616161616161', $instance->getId());
 	}
 
@@ -44,6 +44,7 @@ class EncryptorTest extends TestCase
 			'timestamp' => 1513694013,
 			'headers' => ['uX-Foo' => [ 0 => 'uBar'], 'uX-Baz' => [0 => 'uFoo', 1 => 'uBar']],
 			'data' => 'ustring',
+			'uploads' => null,
 			'url' => null,
 			'method' => null,
 		];
@@ -55,7 +56,10 @@ class EncryptorTest extends TestCase
 	public function testRequestDataAssembly2()
 	{
 		$method = $this->callableMethod('getRequestData');
-		$result = $method->invoke($instance = $this->expectsMockInstance(['data' => ['a' => $this->invalidUtf8String(), 'b' => M_PI, M_PI => null, $this->invalidUtf8String() => $this->invalidUtf8String()]]));
+		$result = $method->invoke($instance = $this->expectsMockInstance([
+			'data' => ['a' => $this->invalidUtf8String(), 'b' => M_PI, M_PI => null, $this->invalidUtf8String() => $this->invalidUtf8String()],
+			'uploads' => ['a' => 'ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff'],
+		]));
 
 		$encoded_str = 'b' . base64_encode($this->invalidUtf8String());
 		$expected = [
@@ -63,6 +67,7 @@ class EncryptorTest extends TestCase
 			'timestamp' => 1513694013,
 			'headers' => ['uX-Foo' => [ 0 => 'uBar'], 'uX-Baz' => [0 => 'uFoo', 1 => 'uBar']],
 			'data' => ['ua' => $encoded_str, 'ub' => M_PI, M_PI => null, $encoded_str => $encoded_str],
+			'uploads' => ['a' => 'ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff'],
 			'url' => null,
 			'method' => null,
 		];
@@ -72,7 +77,7 @@ class EncryptorTest extends TestCase
 	}
 
 	/*
-	 * INPUT TESTS - HEADERS
+	 * INPUT TESTS - headers
 	 */
 
 	public function testInvalidHeadersData1()
@@ -116,7 +121,7 @@ class EncryptorTest extends TestCase
 	}
 
 	/*
-	 * INPUT TESTS - DATA
+	 * INPUT TESTS - data
 	 */
 
 	public function testInvalidRequestData1()
@@ -167,7 +172,7 @@ class EncryptorTest extends TestCase
 	}
 
 	/*
-	 * INPUT TESTS - SHARED SECRETS
+	 * INPUT TESTS - secrets
 	 */
 
 	public function testInvalidSharedSecrets1()
@@ -404,6 +409,40 @@ class EncryptorTest extends TestCase
 	}
 
 	/*
+	 * INPUT TESTS - uploads
+	 */
+
+	public function testInvalidUploads1()
+	{
+		$this->expectsException(UnsupportedVariableTypeException::class, ['uploads' => 'string']);
+	}
+
+	public function testInvalidUploads2()
+	{
+		$this->expectsException(UnsupportedVariableTypeException::class, ['uploads' => new stdClass()]);
+	}
+
+	public function testInvalidUploads3()
+	{
+		$this->expectsException(InvalidDataException::class, ['uploads' => ['a' => 'b', 'c' => 'd']]);
+	}
+
+	public function testInvalidUploads4()
+	{
+		$this->expectsException(InvalidArrayFormatException::class, ['uploads' => ['a' => 'b', 'c' => ['d', 'e' => 'f']]]);
+	}
+
+	public function testValidUploads1()
+	{
+		$this->expectsInstance(['uploads' => []]);
+	}
+
+	public function testValidUploads2()
+	{
+		$this->expectsInstance(['uploads' => ['a' => 'ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff', 'b' => 'ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff']]);
+	}
+
+	/*
 	 * HELPER METHODS
 	 */
 
@@ -437,6 +476,7 @@ class EncryptorTest extends TestCase
 				'X-Baz' => ['Foo', 'Bar'],
 			],
 			'data' => 'string',
+			'uploads' => null,
 			'secret1' => range(0, 31),
 			'secret2' => range(40, 102, 2),
 			'force_id' => null,
@@ -446,7 +486,7 @@ class EncryptorTest extends TestCase
 
 		$args = $merge + $args;
 
-		return [$args['headers'], $args['data'], $args['secret1'], $args['secret2'], $args['force_id'], $args['url'], $args['method']];
+		return [$args['headers'], $args['data'], $args['secret1'], $args['secret2'], $args['force_id'], $args['url'], $args['method'], $args['uploads']];
 	}
 
 	protected function callableMethod($method_name)
