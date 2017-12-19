@@ -2,8 +2,8 @@
 
 namespace Kbs1\EncryptedApiBase\Cryptography;
 
-use Kbs1\EncryptedApiBase\Exceptions\Encryption\UnableToEncodeAsBase64Exception;
-use Kbs1\EncryptedApiBase\Exceptions\Encryption\UnableToEncodeAsJsonException;
+use Kbs1\EncryptedApiBase\Exceptions\Cryptography\Encryption\UnableToEncodeAsBase64Exception;
+use Kbs1\EncryptedApiBase\Exceptions\Cryptography\Encryption\UnableToEncodeAsJsonException;
 use Kbs1\EncryptedApiBase\Exceptions\Cryptography\UnsupportedVariableTypeException;
 
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\EnsuresDataTypes;
@@ -11,12 +11,13 @@ use Kbs1\EncryptedApiBase\Cryptography\Concerns\HandlesSharedSecrets;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithCipher;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\GeneratesRandomBytes;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithRequestId;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithTimestamp;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\ComputesSignature;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\ChecksBinHexFormat;
 
 class Encryptor
 {
-	use EnsuresDataTypes, HandlesSharedSecrets, WorksWithCipher, GeneratesRandomBytes, WorksWithRequestId, ComputesSignature, ChecksBinHexFormat;
+	use EnsuresDataTypes, HandlesSharedSecrets, WorksWithCipher, GeneratesRandomBytes, WorksWithRequestId, WorksWithTimestamp, ComputesSignature, ChecksBinHexFormat;
 
 	protected $headers, $data, $force_id, $used_id, $url, $method;
 
@@ -39,7 +40,7 @@ class Encryptor
 		$this->data = $data;
 
 		if ($force_id)
-			$this->checkBinHexFormat($force_id, $ths->getIdLength() * 2);
+			$this->checkBinHexFormat($force_id, $this->getIdLength());
 
 		$this->force_id = $force_id;
 
@@ -51,14 +52,7 @@ class Encryptor
 
 	public function encrypt()
 	{
-		$data = [
-			'id' => $this->used_id = $this->force_id ?? bin2hex($this->generateRandomBytes($this->getIdLength())),
-			'timestamp' => time(),
-			'headers' => $this->jsonTransmittableArray($this->headers),
-			'data' => $this->data === null ? null : (is_string($this->data) ? $this->jsonTransmittableString($this->data) : $this->jsonTransmittableArray($this->data)),
-			'url' => $this->jsonTransmittableString($this->url),
-			'method' => $this->jsonTransmittableString(strtolower($this->method)),
-		];
+		$data = $this->getRequestData();
 
 		$iv = $this->generateRandomBytes($this->getIvLength());
 		$encrypted = $this->encryptString($this->encodeJson($data), $iv, $this->secret1);
@@ -72,17 +66,32 @@ class Encryptor
 		return $this->used_id;
 	}
 
+	protected function getRequestData()
+	{
+		return [
+			'id' => $this->used_id = $this->force_id ?? bin2hex($this->generateRandomBytes($this->getIdLength())),
+			'timestamp' => $this->getCurrentTimestamp(),
+			'headers' => $this->jsonTransmittableArray($this->headers),
+			'data' => $this->data === null ? null : (is_string($this->data) ? $this->jsonTransmittableValue($this->data) : $this->jsonTransmittableArray($this->data)),
+			'url' => $this->jsonTransmittableValue($this->url),
+			'method' => $this->jsonTransmittableValue($this->method === null ? null : strtolower($this->method)),
+		];
+	}
+
 	protected function encodeBase64($value)
 	{
 		$result = base64_encode($value);
-		if ($value === false)
+		if ($result === false)
 			throw new UnableToEncodeAsBase64Exception();
 
-		return $value;
+		return $result;
 	}
 
-	protected function jsonTransmittableString($value)
+	protected function jsonTransmittableValue($value)
 	{
+		if (!is_string($value))
+			return $value;
+
 		try {
 			$this->ensureValidUtf8($value);
 		} catch (UnsupportedVariableTypeException $ex) {
@@ -98,16 +107,16 @@ class Encryptor
 
 		foreach ($array as $key => $value)
 			if (is_array($value))
-				$result[$this->jsonTransmittableString($key)] = $this->jsonTransmittableArray($value);
+				$result[$this->jsonTransmittableValue($key)] = $this->jsonTransmittableArray($value);
 			else
-				$result[$this->jsonTransmittableString($key)] = $this->jsonTransmittableString($value);
+				$result[$this->jsonTransmittableValue($key)] = $this->jsonTransmittableValue($value);
 
 		return $result;
 	}
 
 	protected function encodeJson($value)
 	{
-		$result = @json_encode($value);
+		$result = @json_encode($value, 0, 513);
 		if (json_last_error() !== JSON_ERROR_NONE)
 			throw new UnableToEncodeAsJsonException(json_last_error_msg());
 

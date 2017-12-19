@@ -37,7 +37,7 @@ trait HandlesSharedSecrets
 		if (substr($secret1, 0, $this->shared_secret_minimum_length) === substr($secret2, 0, $this->shared_secret_minimum_length))
 			throw new InvalidSharedSecretException();
 
-		if (strpos($secret1, $secret2) !== false || strpos($secret2, $secret1))
+		if (strpos($secret1, $secret2) !== false || strpos($secret2, $secret1) !== false)
 			throw new InvalidSharedSecretException();
 	}
 

@@ -11,12 +11,13 @@ use Kbs1\EncryptedApiBase\Cryptography\Concerns\EnsuresDataTypes;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\HandlesSharedSecrets;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithCipher;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithRequestId;
+use Kbs1\EncryptedApiBase\Cryptography\Concerns\WorksWithTimestamp;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\VerifiesSignature;
 use Kbs1\EncryptedApiBase\Cryptography\Concerns\ChecksBinHexFormat;
 
 class Decryptor
 {
-	use EnsuresDataTypes, HandlesSharedSecrets, WorksWithCipher, WorksWithRequestId, VerifiesSignature, ChecksBinHexFormat;
+	use EnsuresDataTypes, HandlesSharedSecrets, WorksWithCipher, WorksWithRequestId, WorksWithTimestamp, VerifiesSignature, ChecksBinHexFormat;
 
 	protected $data;
 
@@ -63,7 +64,7 @@ class Decryptor
 
 	protected function verifyTimestamp($input)
 	{
-		if (!is_numeric($input) || $input < time() - 10)
+		if (!is_numeric($input) || $input < $this->getCurrentTimestamp() - 10)
 			throw new InvalidTimestampException();
 	}
 

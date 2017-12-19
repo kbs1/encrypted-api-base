@@ -40,8 +40,22 @@ trait EnsuresDataTypes
 		$this->ensureSupportedVariableTypes($headers);
 
 		foreach ($headers as $header => $values) {
+			if (!is_array($values)) {
+				throw new InvalidArrayFormatException();
+			}
+
 			if (count($values) !== count($values, COUNT_RECURSIVE)) {
 				throw new InvalidArrayFormatException();
+			}
+
+			if (array_keys($values) !== range(0, count($values) - 1)) {
+				throw new InvalidArrayFormatException();
+			}
+
+			foreach ($values as $value) {
+				if (is_array($value)) {
+					throw new InvalidArrayFormatException();
+				}
 			}
 		}
 	}
