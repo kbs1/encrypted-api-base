@@ -1,19 +1,52 @@
 <?php
 
-use PHPUnit\Framework\TestCase;
-
 use Kbs1\EncryptedApiBase\Cryptography\Encryptor;
 
 use Kbs1\EncryptedApiBase\Exceptions\Cryptography\UnsupportedVariableTypeException;
 use Kbs1\EncryptedApiBase\Exceptions\Cryptography\InvalidArrayFormatException;
 use Kbs1\EncryptedApiBase\Exceptions\Cryptography\CircularReferencesException;
-use Kbs1\EncryptedApiBase\Exceptions\Cryptography\InvalidSharedSecretException;
 use Kbs1\EncryptedApiBase\Exceptions\Cryptography\InvalidDataException;
 
 use Kbs1\EncryptedApiBase\Exceptions\Cryptography\Encryption\UnableToEncodeAsJsonException;
 
-class EncryptorTest extends TestCase
+include_once __DIR__ . '/BaseTestCase.php';
+
+class EncryptorTest extends BaseTestCase
 {
+	/*
+	 * Tested class
+	 */
+
+	protected function getClass()
+	{
+		return Encryptor::class;
+	}
+
+	protected function defaultConstructorArguments()
+	{
+		return [
+			'headers' => [
+				'X-Foo' => ['Bar'],
+				'X-Baz' => ['Foo', 'Bar'],
+			],
+			'data' => 'string',
+			'secret1' => range(0, 31),
+			'secret2' => range(40, 102, 2),
+			'force_id' => null,
+			'url' => null,
+			'method' => null,
+			'uploads' => null,
+		];
+	}
+
+	protected function mockMethods()
+	{
+		return [
+			'generateRandomBytes' => function ($length) { return str_repeat('a', $length); },
+			'getCurrentTimestamp' => function () { return 1513694013; },
+		];
+	}
+
 	/*
 	 * GENERAL TESTS
 	 */
@@ -28,6 +61,18 @@ class EncryptorTest extends TestCase
 		$instance = $this->expectsMockInstance();
 		$this->assertEquals('{"data":"9c71adef9c981616931d2f5711f0789e8294b5a08a186915fd5d157b53456738f7dc6f68a5ff3486edec37b8f6499a0d0851f3c332f768f3761598a648c32891324da17557ceee44fe1805b3717a806bea477920f31b2ae5df3ccff4e60ef72e3196a48eaca97003482a60ffbc290d405e229007ce27a4e23b4c609a9313267ccc0ab1b8714d057905384d5108ebce4a5cba829f40ec475c9bd292106ad43f8faae93433c96fe1d3e4c032388ed758ab293d10fecbed56aedaae3e2a95861727de4cd85df4601f5f949c3d89f6fc51f1","iv":"61616161616161616161616161616161","signature":"9841f3ac1e1299b72b5322f44b2c2a30d9d0ea8ab4459e93591248c3a1c2eac98fa2bfdbb7497a4d4862c64daa5d24b20e0e9afb60e27038f980dcf051b55992"}', $instance->encrypt());
 		$this->assertEquals('6161616161616161616161616161616161616161616161616161616161616161', $instance->getId());
+	}
+
+	public function testEncryption2()
+	{
+		$instance = $this->expectsMockInstance([
+			'force_id' => 'deadcafedeadcafedeadcafedeadcafedeadcafedeadcafedeadcafedeadcafe',
+			'data' => ['a' => $this->invalidUtf8String(), 'b' => M_PI, M_PI => null, $this->invalidUtf8String() => $this->invalidUtf8String()],
+			'uploads' => ['a' => 'ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff'],
+		]);
+
+		$this->assertEquals('{"data":"9c71adef9c981644c74a7a0241a02cccd6c3e0f5da483d47a90a402e0315336aa38b3a3df5af60d4b9bb62eda619ce5f5c06a69662a73ca12242cdf318937cc3661af420079eba44fe1805b3717a806bea477920f31b2ae5df3ccff4e60ef72e3196a48eaca97003482a60ffbc290d405e229007ce27a4e23b4c609a9313267ccc0ab1b8714d057905384d5108ebce4a5cba829f40ec475c9bd292106ad466d8acfc6460856a9aa88cdf0304d8dc669f5e3a5ca785f418ae95ef7c399bd957728056cf03a42c4e08dc9c34c5b9fe48e0fbc7ceeab13e20045aac19821e262cb44a6de3ff1efe7c503bd1991b2fef907f7263d6fbcc94cdb4b88dae6233e9affdaeee43a32d974190fe3536564606deb523be816f1adc29d13bfa7d52d70fe0e14ae3611bf271575174698f29f5a1e0861232713cdac79c7de2f6698d27f4396082a23fbd92cc896e242f1fbcb79ca90eed2171ffd9333a4b6f3a093918d32903c93989d444b89509d824d1faad86e1d76f1fe6b0584430f2bcbcd008ae9d5ab19d5cd9e8a194a832cd715513cf3e6f6d79b84f5e340813f5ca2efc834edcda","iv":"61616161616161616161616161616161","signature":"d391b05ace4cb6bda0cf062442a5b9beef1de3d3c42ba244080522ed4bd26198805731e7f4d84d0b4596ea6d105888a4e4b27d4e240809c806043f670ff14124"}', $instance->encrypt());
+		$this->assertEquals('deadcafedeadcafedeadcafedeadcafedeadcafedeadcafedeadcafedeadcafe', $instance->getId());
 	}
 
 	/*
@@ -172,166 +217,6 @@ class EncryptorTest extends TestCase
 	}
 
 	/*
-	 * INPUT TESTS - secrets
-	 */
-
-	public function testInvalidSharedSecrets1()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => null]);
-	}
-
-	public function testInvalidSharedSecrets2()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret2' => null]);
-	}
-
-	public function testInvalidSharedSecrets3()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => M_PI]);
-	}
-
-	public function testInvalidSharedSecrets4()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret2' => M_PI]);
-	}
-
-	public function testInvalidSharedSecrets5()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => 'foo']);
-	}
-
-	public function testInvalidSharedSecrets6()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret2' => 'foo']);
-	}
-
-	public function testInvalidSharedSecrets7()
-	{
-		$secret = range(0, 31);
-		$secret[31] = 'foo';
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => $secret]);
-	}
-
-	public function testInvalidSharedSecrets8()
-	{
-		$secret = range(0, 31);
-		$secret[31] = 'foo';
-		$this->expectsException(InvalidSharedSecretException::class, ['secret2' => $secret]);
-	}
-
-	public function testInvalidSharedSecrets9()
-	{
-		$secret = range(0, 31);
-		$secret[16] = -1;
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => $secret]);
-	}
-
-	public function testInvalidSharedSecrets10()
-	{
-		$secret = range(0, 31);
-		$secret[16] = -1;
-		$this->expectsException(InvalidSharedSecretException::class, ['secret2' => $secret]);
-	}
-
-	public function testInvalidSharedSecrets11()
-	{
-		$secret = range(0, 31);
-		$secret[16] = 256;
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => $secret]);
-	}
-
-	public function testInvalidSharedSecrets12()
-	{
-		$secret = range(0, 31);
-		$secret[16] = 256;
-		$this->expectsException(InvalidSharedSecretException::class, ['secret2' => $secret]);
-	}
-
-	public function testInvalidSharedSecrets13()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => fopen('php://temp', 'r+')]);
-	}
-
-	public function testInvalidSharedSecrets14()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret2' => fopen('php://temp', 'r+')]);
-	}
-
-	public function testInvalidSharedSecrets15()
-	{
-		$secret = range(0, 31);
-		$secret[13] = fopen('php://temp', 'r+');
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => $secret]);
-	}
-
-	public function testInvalidSharedSecrets16()
-	{
-		$secret = range(0, 31);
-		$secret[13] = fopen('php://temp', 'r+');
-		$this->expectsException(InvalidSharedSecretException::class, ['secret2' => $secret]);
-	}
-
-	public function testInvalidSharedSecrets17()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => range(0, 90), 'secret2' => range(0, 90)]);
-	}
-
-	public function testInvalidSharedSecrets18()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => '01234567890123456789012345678912', 'secret2' => '01234567890123456789012345678912']);
-	}
-
-	public function testInvalidSharedSecrets19()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => '01234567890123456789012345678912x', 'secret2' => '01234567890123456789012345678912']);
-	}
-
-	public function testInvalidSharedSecrets20()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => '01234567890123456789012345678912', 'secret2' => '01234567890123456789012345678912x']);
-	}
-
-	public function testInvalidSharedSecrets21()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => '0123456789012345678901234567891']);
-	}
-
-	public function testInvalidSharedSecrets22()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret2' => '0123456789012345678901234567891']);
-	}
-
-	public function testInvalidSharedSecrets23()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => range(0, 30)]);
-	}
-
-	public function testInvalidSharedSecrets24()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret2' => range(0, 30)]);
-	}
-
-	public function testInvalidSharedSecrets25()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => 'x01234567890123456789012345678912', 'secret2' => '01234567890123456789012345678912']);
-	}
-
-	public function testInvalidSharedSecrets26()
-	{
-		$this->expectsException(InvalidSharedSecretException::class, ['secret1' => '01234567890123456789012345678912', 'secret2' => 'x01234567890123456789012345678912']);
-	}
-
-	public function testValidSharedSecrets1()
-	{
-		$this->expectsInstance(['secret1' => str_repeat($this->invalidUtf8String(), 4)]);
-	}
-
-	public function testValidSharedSecrets2()
-	{
-		$this->expectsInstance(['secret2' => str_repeat($this->invalidUtf8String(), 4)]);
-	}
-
-	/*
 	 * INPUT TESTS - force_id
 	 */
 
@@ -440,105 +325,5 @@ class EncryptorTest extends TestCase
 	public function testValidUploads2()
 	{
 		$this->expectsInstance(['uploads' => ['a' => 'ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff', 'b' => 'ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff']]);
-	}
-
-	/*
-	 * HELPER METHODS
-	 */
-
-	protected function expectsInstance(array $arguments_merge = [])
-	{
-		$this->assertInstanceOf(Encryptor::class, $instance = new Encryptor(...$this->constructorArguments($arguments_merge)));
-		return $instance;
-	}
-
-	protected function expectsMockInstance(array $arguments_merge = [])
-	{
-		$instance = $this->getMockBuilder(Encryptor::class)->setMethods(['generateRandomBytes', 'getCurrentTimestamp'])->setConstructorArgs($this->constructorArguments($arguments_merge))->getMock();
-		$instance->method('generateRandomBytes')->will($this->returnCallback(function ($length) { return str_repeat('a', $length); }));
-		$instance->method('getCurrentTimestamp')->willReturn(1513694013);
-
-		$this->assertInstanceOf(Encryptor::class, $instance);
-		return $instance;
-	}
-
-	protected function expectsException($exception_class, array $arguments_merge = [])
-	{
-		$this->expectException($exception_class);
-		return new Encryptor(...$this->constructorArguments($arguments_merge));
-	}
-
-	protected function constructorArguments(array $merge = [])
-	{
-		$args = [
-			'headers' => [
-				'X-Foo' => ['Bar'],
-				'X-Baz' => ['Foo', 'Bar'],
-			],
-			'data' => 'string',
-			'uploads' => null,
-			'secret1' => range(0, 31),
-			'secret2' => range(40, 102, 2),
-			'force_id' => null,
-			'url' => null,
-			'method' => null,
-		];
-
-		$args = $merge + $args;
-
-		return [$args['headers'], $args['data'], $args['secret1'], $args['secret2'], $args['force_id'], $args['url'], $args['method'], $args['uploads']];
-	}
-
-	protected function callableMethod($method_name)
-	{
-		$method = new ReflectionMethod(Encryptor::class, $method_name);
-        $method->setAccessible(true);
-
-        return $method;
-	}
-
-	protected function circularReferencedArray()
-	{
-		$a = ['foo' => 'bar'];
-		$a[4] = &$a;
-
-		return $a;
-	}
-
-	protected function invalidUtf8String()
-	{
-		return "abc\x00\xffcde";
-	}
-
-	protected function deepArray($levels)
-	{
-		$a = ['el' => rand()];
-		$cur = &$a;
-
-		for ($level = 0; $level < $levels - 1; $level++) {
-			$cur['el2'] = ['el' => rand()];
-			$cur = &$cur['el2'];
-		}
-
-		unset($cur);
-
-		return $a;
-	}
-
-	protected function arrayDepth(array $array)
-	{
-		$max_depth = 1;
-
-		foreach ($array as $value) {
-			if (is_array($value)) {
-				$depth = $this->arrayDepth($value) + 1;
-
-				if ($depth > $max_depth) {
-					$max_depth = $depth;
-				}
-			}
-		}
-
-		return $max_depth;
 	}
 }

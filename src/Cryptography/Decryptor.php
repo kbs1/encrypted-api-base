@@ -49,8 +49,8 @@ class Decryptor
 	{
 		$input = $this->decodeAndCheckJson($this->data, ['signature', 'iv', 'data']);
 
-		$this->checkBinHexFormat($input['signature'], $this->getSignatureLength() * 2);
-		$this->checkBinHexFormat($input['iv'], $this->getIvLength() * 2);
+		$this->checkBinHexFormat($input['signature'], $this->getSignatureLength());
+		$this->checkBinHexFormat($input['iv'], $this->getIvLength());
 		$this->checkBinHexFormat($input['data']);
 
 		return $input;
@@ -87,10 +87,10 @@ class Decryptor
 		if (is_array($input['data']))
 			$input['data'] = $this->decodeJsonTransmittableArray($input['data']);
 		if (is_string($input['data']))
-			$input['data'] = $this->decodeJsonTransmittableString($input['data']);
+			$input['data'] = $this->decodeJsonTransmittableValue($input['data']);
 
-		$input['url'] = $this->decodeJsonTransmittableString($input['url']);
-		$input['method'] = $this->decodeJsonTransmittableString($input['method']);
+		$input['url'] = $this->decodeJsonTransmittableValue($input['url']);
+		$input['method'] = $this->decodeJsonTransmittableValue($input['method']);
 
 		return $input;
 	}
@@ -104,9 +104,10 @@ class Decryptor
 		return $value;
 	}
 
-	protected function decodeJsonTransmittableString($value)
+	protected function decodeJsonTransmittableValue($value)
 	{
-		$this->ensureString($value);
+		if (!is_string($value))
+			return $value;
 
 		if (strlen($value) < 1)
 			throw new InvalidDataException();
@@ -126,9 +127,9 @@ class Decryptor
 
 		foreach ($array as $key => $value)
 			if (is_array($value))
-				$result[$this->decodeJsonTransmittableString($key)] = $this->decodeJsonTransmittableArray($value);
+				$result[$this->decodeJsonTransmittableValue($key)] = $this->decodeJsonTransmittableArray($value);
 			else
-				$result[$this->decodeJsonTransmittableString($key)] = $this->decodeJsonTransmittableString($value);
+				$result[$this->decodeJsonTransmittableValue($key)] = $this->decodeJsonTransmittableValue($value);
 
 		return $result;
 	}
