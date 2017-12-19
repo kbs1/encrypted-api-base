@@ -37,10 +37,10 @@ class EncryptorTest extends TestCase
 	public function testRequestDataAssembly1()
 	{
 		$method = $this->callableMethod('getRequestData');
-		$result = $method->invoke($this->expectsMockInstance());
+		$result = $method->invoke($instance = $this->expectsMockInstance(['force_id' => 'deadcafedeadcafedeadcafedeadcafedeadcafedeadcafedeadcafedeadcafe']));
 
 		$expected = [
-			'id' => '6161616161616161616161616161616161616161616161616161616161616161',
+			'id' => 'deadcafedeadcafedeadcafedeadcafedeadcafedeadcafedeadcafedeadcafe',
 			'timestamp' => 1513694013,
 			'headers' => ['uX-Foo' => [ 0 => 'uBar'], 'uX-Baz' => [0 => 'uFoo', 1 => 'uBar']],
 			'data' => 'ustring',
@@ -49,12 +49,13 @@ class EncryptorTest extends TestCase
 		];
 
 		$this->assertEquals($expected, $result);
+		$this->assertEquals('deadcafedeadcafedeadcafedeadcafedeadcafedeadcafedeadcafedeadcafe', $instance->getId());
 	}
 
 	public function testRequestDataAssembly2()
 	{
 		$method = $this->callableMethod('getRequestData');
-		$result = $method->invoke($this->expectsMockInstance(['data' => ['a' => $this->invalidUtf8String(), 'b' => M_PI, M_PI => null, $this->invalidUtf8String() => $this->invalidUtf8String()]]));
+		$result = $method->invoke($instance = $this->expectsMockInstance(['data' => ['a' => $this->invalidUtf8String(), 'b' => M_PI, M_PI => null, $this->invalidUtf8String() => $this->invalidUtf8String()]]));
 
 		$encoded_str = 'b' . base64_encode($this->invalidUtf8String());
 		$expected = [
@@ -67,6 +68,7 @@ class EncryptorTest extends TestCase
 		];
 
 		$this->assertEquals($expected, $result);
+		$this->assertEquals('6161616161616161616161616161616161616161616161616161616161616161', $instance->getId());
 	}
 
 	/*

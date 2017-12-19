@@ -22,3 +22,6 @@ The setup as a whole protects using MITM attacks, authenticates both the server 
 plain HTTP, or HTTPS.
 
 This repository contains implementations of encryptor, decryptor and shared secrets generator.
+
+# Tests
+To run the tests suite, invoke `composer install` after cloning the repository, then run `./vendor/bin/phpunit`.
