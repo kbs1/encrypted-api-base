@@ -2,7 +2,7 @@
 
 namespace Kbs1\EncryptedApiBase\Exceptions\Cryptography;
 
-class InvalidUploadHashException extends BaseException
+class UnableToGenerateSharedSecretsException extends BaseException
 {
 
 }
