@@ -2,7 +2,7 @@
 
 namespace Kbs1\EncryptedApiBase\Cryptography;
 
-use Kbs1\EncryptedApiBase\Cryptography\Support\SharedSecrets;
+use Kbs1\EncryptedApiBase\Cryptography\Support\{Cipher, SharedSecrets};
 use Kbs1\EncryptedApiBase\Exceptions\Cryptography\{InvalidSharedSecretException, UnableToGenerateSharedSecretsException};
 
 class SharedSecretsGenerator
