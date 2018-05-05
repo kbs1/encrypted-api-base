@@ -4,7 +4,7 @@ namespace Kbs1\EncryptedApiBase\Cryptography\Support;
 
 class Payload
 {
-	protected $validator, $cipher, $json, $uploadsStore, $timestampGenerator;
+	protected $validator, $cipher, $json, $timestampGenerator;
 	protected $headers, $data, $provided_id, $id, $provided_timestamp, $timestamp, $url, $method, $uploads;
 
 	protected $id_length = 32;
@@ -77,7 +77,7 @@ class Payload
 	{
 		$this->validator->ensureStringOrNull($id);
 
-		if ($id)
+		if ($id !== null)
 			$this->validator->checkBinHexFormat($id, $this->getIdLength() * 2);
 
 		$this->provided_id = $id;
